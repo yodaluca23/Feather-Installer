@@ -315,8 +315,8 @@
 
         // Helper to get query params
         function getQueryParam(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
+            const value = new URLSearchParams(window.location.search).get(name);
+            return value && value.trim() !== '' ? value : null;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
