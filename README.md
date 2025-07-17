@@ -6,8 +6,6 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 
 ## Features
 
-- Upload your `.p12` certificate and `.mobileprovision` provisioning profile.
-- Enter your certificate password securely.
 - Automatically downloads the latest Feather IPA from GitHub.
 - Signs the IPA using your credentials via the [`ipasign.cc`](https://sign.ipasign.cc) API.
 - Provides a direct install link (`itms-services://`) for your signed app.
