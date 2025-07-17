@@ -5,46 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Feather Installer by yodaluca23</title>
-    <script>
-        tailwind.config = {
-            darkMode: 'media',
-        };
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <style>
-        .loading-dots span {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            margin: 0 2px;
-            background-color: white;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .loading-dots span:nth-child(1) {
-            animation-delay: -0.32s;
-        }
-
-        .loading-dots span:nth-child(2) {
-            animation-delay: -0.16s;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            80%,
-            100% {
-                transform: scale(0);
-            }
-
-            40% {
-                transform: scale(1);
-            }
-        }
-    </style>
-
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center px-4 py-8">
@@ -83,7 +44,16 @@
             class="mt-6 text-sm font-mono p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-100 transition-all duration-300">
             🕓 Awaiting submission...
         </div>
+
         <div id="sendToPhoneContainer" class="mt-4 text-center"></div>
+
+        <p class="mt-6 text-xs text-center text-gray-700 dark:text-gray-400">
+            This tool uses
+            <a href="https://sign.ipasign.cc" target="_blank" rel="noopener noreferrer"
+                class="underline hover:text-blue-600 dark:hover:text-blue-400">
+                ipasign.cc</a> to sign and deliver your IPA. Please ensure you trust this service before proceeding.
+        </p>
+
     </div>
 
     <script>
@@ -190,7 +160,7 @@
                         }
 
                         if (submitBtn) submitBtn.disabled = false;
-                    } else if (statusData.status === 'FAILED') {
+                    } else if (statusData.status === 'FAILURE') {
                         updateStatus(`❌ Signing failed:<br><code>${statusData.message || 'Unknown error'}</code>`, 'error');
                         if (submitBtn) submitBtn.disabled = false;
                     } else {
@@ -219,7 +189,7 @@
             if (taskParam && uriParam) {
                 // Hide form and start polling automatically
                 const form = document.getElementById('uploadForm');
-                form.style.display = 'none';
+                form.classList.add('hidden');
 
                 // pass "true" to indicate param mode so no "Send to Phone" button shows
                 pollStatus(taskParam, decodeURIComponent(uriParam), null, true);
@@ -245,7 +215,7 @@
             updateStatus('🔄 Uploading and signing...', 'info');
 
             try {
-                const ipaResponse = await fetch(`https://cors-anywhere.herokuapp.com/https://github.com/khcrysalis/Feather/releases/latest/download/Feather.ipa`);
+                const ipaResponse = await fetch(`https://corsproxy.io/?https://github.com/khcrysalis/Feather/releases/latest/download/Feather.ipa`);
                 if (!ipaResponse.ok) throw new Error('Failed to download IPA');
                 const ipaBlob = await ipaResponse.blob();
 
@@ -264,25 +234,23 @@
                 if (!result.task_id) throw new Error('No task_id returned from server');
 
                 const taskId = result.task_id;
-                updateStatus(`🛠 Signing in progress...<br><code>Task ID: ${taskId}</code>`, 'info');
 
                 const [p12Base64, mpBase64] = await Promise.all([
                     fileToBase64(p12File),
                     fileToBase64(mpFile),
                 ]);
-                const passwordBase64 = btoa(unescape(encodeURIComponent(password)));
-                const importUrl = `feather://import-certificate?p12=${encodeURIComponent(p12Base64)}&mobileprovision=${encodeURIComponent(mpBase64)}&password=${encodeURIComponent(passwordBase64)}`;
+                const passwordBase64 = btoa(password);
+                const importUrl = `feather://import-certificate?p12=${p12Base64}&mobileprovision=${mpBase64}&password=${passwordBase64}`;
 
                 pollStatus(taskId, importUrl, submitBtn);
             } catch (err) {
                 updateStatus('🚫 Error: ' + err.message, 'error');
-                const submitBtn = form.querySelector('button[type="submit"]');
                 submitBtn.disabled = false;
             }
         });
     </script>
 
-    <a href="https://github.com/yodaluca23" target="_blank" rel="noopener noreferrer" class="fixed bottom-4 left-4
+    <a href="https://github.com/yodaluca23/Feather-Installer" target="_blank" rel="noopener noreferrer" class="fixed bottom-4 left-4
           bg-gray-900 dark:bg-gray-100 
           text-white dark:text-gray-900 
           hover:bg-gray-700 dark:hover:bg-gray-300 
