@@ -220,13 +220,26 @@
                     const qrContainer = document.getElementById('qrCodeContainer');
                     qrContainer.innerHTML = '';
 
-                    QRCode.toCanvas(qrCodeUrl, { width: 200 }, (error, canvas) => {
+                    const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                    QRCode.toCanvas(qrCodeUrl, {
+                        width: 200,
+                        color: {
+                            dark: isDark ? '#FFFFFF' : '#000000', // White QR on dark bg, black on light bg
+                            light: isDark ? '#1f2937' : '#FFFFFF' // Match Tailwind dark:bg-gray-800 or white
+                        }
+                    }, (error, canvas) => {
                         if (error) {
                             console.error(error);
                             qrContainer.innerHTML = '❌ Failed to generate QR code';
                             return;
                         }
-                        qrContainer.appendChild(canvas);
+
+                        const qrWrapper = document.createElement('div');
+                        qrWrapper.className = 'rounded-lg p-1 border-2 border-gray-600 bg-white dark:border-gray-500 dark:bg-gray-800 inline-block';
+
+                        qrWrapper.appendChild(canvas);
+                        qrContainer.appendChild(qrWrapper);
                     });
 
                 } catch (err) {
@@ -236,11 +249,11 @@
             };
 
             container.appendChild(qrButton);
-
             const qrContainer = document.createElement('div');
             qrContainer.id = 'qrCodeContainer';
             qrContainer.className = 'mt-4 flex justify-center';
             container.appendChild(qrContainer);
+
         }
 
         function showCopiedNotification(text = 'URL copied to clipboard!') {
