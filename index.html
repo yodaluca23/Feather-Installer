@@ -306,6 +306,7 @@
                     }
                 } catch (err) {
                     updateStatus('🚫 Error: ' + err.message, 'error');
+                    console.error('Error in polling process:', err);
                     if (submitBtn) submitBtn.disabled = false;
                 }
             };
@@ -409,6 +410,7 @@
                 pollStatus(taskId, importUrl, submitBtn);
             } catch (err) {
                 updateStatus('🚫 Error: ' + err.message, 'error');
+                console.error('Error in signing process:', err);
                 submitBtn.disabled = false;
             }
         });
