@@ -395,8 +395,14 @@
                     body: formData
                 });
 
-                const result = await uploadResponse.json();
-                if (!result.task_id) throw new Error('No task_id returned from server');
+                const responseText = await uploadResponse.text();
+
+                try {
+                    const result = JSON.parse(responseText);
+                    if (!result.task_id) throw new Error('No task_id returned from server');
+                } catch (parseError) {
+                    throw new Error('Failed to parse JSON: ' + responseText.slice(0, 100));
+                }
 
                 const taskId = result.task_id;
 
