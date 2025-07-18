@@ -392,23 +392,11 @@
 
                 const uploadResponse = await fetch('https://ipa.ipasign.cc/sign', {
                     method: 'POST',
-                    body: formData,
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                    credentials: 'include'
+                    body: formData
                 });
 
-                const responseText = await uploadResponse.text();
-                console.log('Status:', uploadResponse.status);
-                console.log('Response text:', responseText);
-                
-                try {
-                    const result = JSON.parse(responseText);
-                    if (!result.task_id) throw new Error('No task_id returned from server');
-                } catch (parseError) {
-                    throw new Error('Failed to parse JSON: ' + responseText.slice(0, 100));
-                }
+                const result = await uploadResponse.json();
+                if (!result.task_id) throw new Error('No task_id returned from server');
 
                 const taskId = result.task_id;
 
