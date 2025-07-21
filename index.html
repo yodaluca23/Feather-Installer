@@ -170,7 +170,7 @@
             }
 
             return {
-                url: `${window.location.origin}${window.location.pathname}?catbox=true&id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`,
+                url: `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`,
                 password
             };
         }
@@ -179,7 +179,7 @@
             try {
                 const response = await fetch(`https://litter.catbox.moe/${id}.txt`);
                 const text = await response.text();
-                decryptedText = await aesDecrypt(text, password);
+                const decryptedText = await aesDecrypt(text, password);
                 const data = JSON.parse(decryptedText);
 
                 const decryptedTaskId = await aesDecrypt(data.taskId, password);
@@ -199,7 +199,7 @@
             const container = document.getElementById('sendToPhoneContainer');
             container.innerHTML = ''; // Clear previous
 
-            encryptedUrlSaved = '';
+            let encryptedUrlSaved = '';
 
             // 📱 Button to copy URL
             const button = document.createElement('button');
@@ -357,14 +357,11 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             (async () => {
-                const taskParam = getQueryParam('task');
-                const uriParam = getQueryParam('uri');
-                const catboxParam = getQueryParam('catbox');
                 const catboxId = getQueryParam('id');
                 const passwordParam = location.hash ? location.hash.substring(1) : null;
                 const form = document.getElementById('uploadForm');
 
-                if (catboxParam && catboxId && passwordParam) {
+                if (catboxId && passwordParam) {
                     form.classList.add('hidden');
                     updateStatus('🛠 Decryption in progress...', 'info');
 
