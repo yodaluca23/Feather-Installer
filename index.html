@@ -157,10 +157,12 @@
                 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))
             ).join('');
 
-            const encryptedData = JSON.stringify({
+            const encryptedJsonData = JSON.stringify({
                 taskId: await aesEncrypt(taskId, password),
                 importUri: await aesEncrypt(importUri, password)
             });
+
+            const encryptedData = await aesEncrypt(encryptedJsonData, password);
 
             const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h');
             if (!uploadedUrlId) {
@@ -171,6 +173,26 @@
                 url: `${window.location.origin}${window.location.pathname}?catbox=true&id=${encodeURIComponent(uploadedUrlId)}&password=${encodeURIComponent(password)}`,
                 password
             };
+        }
+
+        async function downloadAndDecrypt(id, password) {
+            try {
+                const response = await fetch(`https://litter.catbox.moe/${id}.txt`);
+                const text = await response.text();
+                decryptedText = await aesDecrypt(text, password);
+                const data = JSON.parse(decryptedText);
+
+                const decryptedTaskId = await aesDecrypt(data.taskId, password);
+                const decryptedImportUri = await aesDecrypt(data.importUri, password);
+
+                if (!decryptedTaskId || !decryptedImportUri) throw new Error('Failed to decrypt data.');
+
+                return { taskId: decryptedTaskId, importUri: decryptedImportUri };
+            } catch (err) {
+                console.error('Decryption error:', err);
+                throw new Error('Failed to decrypt data.');
+            }
+            
         }
 
         function createFinalButtons(taskId, importUri) {
@@ -290,7 +312,7 @@
                     const statusData = await statusResponse.json();
 
                     if (statusData.status === 'SUCCESS' && statusData.download_url) {
-                        const installUrl = `itms-services://?action=download-manifest&url=https://ipa.ipasign.cc/manifest/${statusData.download_url.replace('/download/', '')}.plist`;
+                        const installUrl = `itms-services://?action=download-manifest&url=https://ipa.ipasign.cc/manifest/${statusData.task_id}.plist`;
 
                         updateStatus(`
                     ✅ <strong>Signing complete!</strong><br><br>
@@ -350,23 +372,18 @@
                     const password = decodeURIComponent(passwordParam);
 
                     try {
-                        const response = await fetch(`https://litter.catbox.moe/${catboxId}.txt`);
-                        const text = await response.text();
-                        const data = JSON.parse(text);
+                        downloadAndDecrypt(catboxId, password).then(({ taskId: decryptedTaskId, importUri: decryptedImportUri }) => {
+                            if (!decryptedTaskId || !decryptedImportUri) {
+                                throw new Error('Failed to decrypt data.');
+                            } else {
+                                pollStatus(decryptedTaskId, decryptedImportUri, null, true);
 
-                        const decryptedTaskId = await aesDecrypt(data.taskId, password);
-                        const decryptedImportUri = await aesDecrypt(data.importUri, password);
-
-                        if (!decryptedTaskId || !decryptedImportUri) throw new Error('Failed to decrypt data.');
-
-                        pollStatus(decryptedTaskId, decryptedImportUri, null, true);
+                            }
+                        });
                     } catch (err) {
                         console.error('Decryption error:', err);
                         updateStatus('🚫 Failed to decrypt data.', 'error');
                     }
-                } else if (taskParam && uriParam) {
-                    form.classList.add('hidden');
-                    pollStatus(taskParam, decodeURIComponent(uriParam), null, true);
                 }
             })();
         });
