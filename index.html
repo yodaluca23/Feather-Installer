@@ -170,7 +170,7 @@
             }
 
             return {
-                url: `${window.location.origin}${window.location.pathname}?catbox=true&id=${encodeURIComponent(uploadedUrlId)}&password=${encodeURIComponent(password)}`,
+                url: `${window.location.origin}${window.location.pathname}?catbox=true&id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`,
                 password
             };
         }
@@ -361,8 +361,7 @@
                 const uriParam = getQueryParam('uri');
                 const catboxParam = getQueryParam('catbox');
                 const catboxId = getQueryParam('id');
-                const passwordParam = getQueryParam('password');
-
+                const passwordParam = location.hash ? location.hash.substring(1) : null;
                 const form = document.getElementById('uploadForm');
 
                 if (catboxParam && catboxId && passwordParam) {
