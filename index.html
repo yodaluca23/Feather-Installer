@@ -192,7 +192,7 @@
                 console.error('Decryption error:', err);
                 throw new Error('Failed to decrypt data.');
             }
-            
+
         }
 
         function createFinalButtons(taskId, importUri) {
@@ -408,7 +408,8 @@
             try {
                 const ipaResponse = await fetch(`https://corsproxy.io/?https://github.com/khcrysalis/Feather/releases/latest/download/Feather.ipa`);
                 if (!ipaResponse.ok) throw new Error('Failed to download IPA');
-                const ipaBlob = await ipaResponse.blob();
+                const ipaArrayBuffer = await ipaResponse.arrayBuffer();
+                const ipaBlob = new Blob([ipaArrayBuffer], { type: 'application/octet-stream' });
 
                 const formData = new FormData();
                 formData.append('ipa', ipaBlob, 'Feather.ipa');
