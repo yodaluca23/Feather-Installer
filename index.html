@@ -121,6 +121,61 @@
             responseEl.innerHTML = content;
         }
 
+        // Fetch the latest Feather IPA info from GitHub, using API instead of direct download so we can get the hash
+        async function getFeatherIpaInfo() {
+            const latestReleaseUrl = 'https://api.github.com/repos/khcrysalis/feather/releases/latest';
+
+            try {
+                // Step 1: Fetch the latest release data
+                const releaseResponse = await fetch(latestReleaseUrl, {
+                    headers: { 'Accept': 'application/vnd.github+json' }
+                });
+
+                if (!releaseResponse.ok) {
+                    throw new Error(`Failed to fetch release: ${releaseResponse.statusText}`);
+                }
+
+                const releaseData = await releaseResponse.json();
+                const assetsUrl = releaseData.assets_url;
+
+                // Step 2: Fetch the assets from the assets URL
+                const assetsResponse = await fetch(assetsUrl, {
+                    headers: { 'Accept': 'application/vnd.github+json' }
+                });
+
+                if (!assetsResponse.ok) {
+                    throw new Error(`Failed to fetch assets: ${assetsResponse.statusText}`);
+                }
+
+                const assets = await assetsResponse.json();
+
+                // Step 3: Find the "Feather.ipa" asset
+                const featherIpa = assets.find(asset => asset.name === "Feather.ipa");
+
+                if (!featherIpa) {
+                    throw new Error("Feather.ipa not found in assets");
+                }
+
+                // Return the download URL and digest (if available)
+                return {
+                    url: featherIpa.url,
+                    digest: featherIpa.digest.replace('sha256:', '') || null  // Digest might not always be present
+                };
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+        }
+
+        async function verifyDigest(arrayBuffer, expectedDigest) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            console.log(`Calculated SHA-256: ${hashHex}`);
+            console.log(`Expected SHA-256: ${expectedDigest}`);
+            return hashHex === expectedDigest.toLowerCase();
+        }
+
         async function uploadRawText(text, filename = 'upload.txt', time = '12h') {
             const blob = new Blob([text], { type: 'text/plain' });
             const file = new File([blob], filename, { type: 'text/plain' });
@@ -406,9 +461,26 @@
             updateStatus('🔄 Uploading and signing...', 'info');
 
             try {
-                const ipaResponse = await fetch(`https://corsproxy.io/?https://github.com/khcrysalis/Feather/releases/latest/download/Feather.ipa`);
+                const info = await getFeatherIpaInfo();
+                //console.log(info);
+
+                const ipaResponse = await fetch('https://corsproxy.io/?' + info.url, {
+                    headers: {
+                        'Accept': 'application/octet-stream'
+                    }
+                });
+
                 if (!ipaResponse.ok) throw new Error('Failed to download IPA');
                 const ipaArrayBuffer = await ipaResponse.arrayBuffer();
+
+                // Perform integrity check
+                if (info.digest) {
+                    const isValid = await verifyDigest(ipaArrayBuffer, info.digest);
+                    if (!isValid) throw new Error('IPA integrity check failed (digest mismatch)');
+                } else {
+                    console.warn('No digest provided for IPA; skipping integrity check.');
+                }
+
                 const ipaBlob = new Blob([ipaArrayBuffer], { type: 'application/octet-stream' });
 
                 const formData = new FormData();
