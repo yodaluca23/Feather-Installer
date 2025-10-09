@@ -305,18 +305,10 @@
 
                     // Generate the modified IPA
                     const modifiedIpaBlob = await zip.generateAsync({ type: 'blob' });
-
-                    // Download the modified IPA for debugging
-                    const debugLink = document.createElement('a');
-                    debugLink.href = URL.createObjectURL(modifiedIpaBlob);
-                    debugLink.download = 'Modified_Feather_Debug.ipa';
-                    debugLink.style.display = 'none';
-                    document.body.appendChild(debugLink);
-                    debugLink.click();
-                    document.body.removeChild(debugLink);
                     resolve(modifiedIpaBlob);
 
                 } catch (error) {
+                    console.error('Error embedding certificate:', error);
                     reject(error);
                 }
             });
@@ -366,7 +358,7 @@
             const container = document.getElementById('sendToPhoneContainer');
             container.innerHTML = ''; // Clear previous QR code and buttons
 
-            updateStatus('🔄 Uploading and signing...', 'info');
+            updateStatus('🔄 Proccessing form details...', 'info');
 
             try {
                 const info = await getFeatherIpaInfo();
@@ -377,6 +369,8 @@
                         'Accept': 'application/octet-stream'
                     }
                 });
+
+                updateStatus('🔍 Verifying IPA...', 'info');
 
                 if (!ipaResponse.ok) throw new Error('Failed to download IPA');
                 const ipaArrayBuffer = await ipaResponse.arrayBuffer();
@@ -400,6 +394,8 @@
                 formData.append('p12', p12File);
                 formData.append('mp', mpFile);
                 formData.append('password', password);
+
+                updateStatus('🚀 Uploading to signing service...', 'info');
 
                 const uploadResponse = await fetch('https://ipa.ipasign.cc/sign', {
                     method: 'POST',
