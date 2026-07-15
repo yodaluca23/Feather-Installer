@@ -1,39 +1,53 @@
 const responseEl = document.getElementById('response');
 
 async function deriveKey(password, salt) {
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey({
-        name: "PBKDF2",
+    const hashResult = await argon2.hash({
+        pass: password,
         salt,
-        iterations: 100000,
-        hash: "SHA-256"
-    }, keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+        time: 3,
+        mem: 65536,   // 64 MiB
+        parallelism: 1,
+        hashLen: 32,
+        type: argon2.Argon2id
+    });
+    const hash = hashResult.hash ?? hashResult;
+
+  return crypto.subtle.importKey(
+    "raw",
+    hash,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
 }
 
 async function aesEncrypt(text, password) {
-    const enc = new TextEncoder();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const key = await deriveKey(password, salt);
-    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(text));
+  const enc = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(password, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    enc.encode(text)
+  );
 
-    const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
-    combined.set(salt);
-    combined.set(iv, salt.length);
-    combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
+  const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+  combined.set(salt);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
 
-    return btoa(String.fromCharCode(...combined));
+  return btoa(String.fromCharCode(...combined));
 }
 
 async function aesDecrypt(base64, password) {
-    const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    const salt = raw.slice(0, 16);
-    const iv = raw.slice(16, 28);
-    const data = raw.slice(28);
-    const key = await deriveKey(password, salt);
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-    return new TextDecoder().decode(decrypted);
+  const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  const salt = raw.slice(0, 16);
+  const iv = raw.slice(16, 28);
+  const data = raw.slice(28);
+  const key = await deriveKey(password, salt);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  return new TextDecoder().decode(decrypted);
 }
 
 function fileToBase64(file) {
@@ -147,12 +161,11 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h', litter
     }
 }
 
-function generateRandomPassword() {
-    const password = Array.from({ length: 24 }, () =>
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))
-    ).join('');
+function generateRandomPassword(length = 48) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
 
-    return password;
+  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
 }
 
 async function getEncryptedUrl(taskId, certificateData, litterbox = true) {

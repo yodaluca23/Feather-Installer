@@ -38,6 +38,7 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 - IPA download proxy: [Cloudflare Workers](https://www.cloudflare.com/products/workers/) (Using ./cf-worker.js script)
 - Optional temporary file hosting (for import link encryption): [catbox.moe](https://litterbox.catbox.moe)
 - QR Code generation: [qrcode](https://github.com/soldair/node-qrcode)
+- Argon2 Key Derivation: [Argon2 in Browser](https://github.com/antelle/argon2-browser) (Included)
 
 ---
 
@@ -46,7 +47,7 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 This tool sends your `.p12`, `.mobileprovision`, and password directly to [ipasign.cc](https://sign.ipasign.cc) in order to sign your IPA — this is required for the signing process to work. No certificate files are stored or uploaded anywhere else.
 
 When using the **"Send to Phone"** or **QR Code** features:
-- The certificate **import link is encrypted client-side** using **AES-GCM (256-bit)** with a key derived via **PBKDF2 (SHA-256)** before being uploaded as temporary storage (deleted after one hour) to [catbox.moe](https://litterbox.catbox.moe).
+- The certificate **import link is encrypted client-side** using **AES-GCM (256-bit)** with a key derived via **Argon2id** (using the Included Argon2 in Browser package) before being uploaded as temporary storage (deleted after one hour) to [catbox.moe](https://litterbox.catbox.moe).
 - The decryption password is only shared via the URL fragment (not stored anywhere).
 
 > ⚠️ You should **only use this tool if you trust ipasign.cc** with your signing credentials. As with any third-party service handling Apple certificates, there is an inherent security risk.
@@ -81,3 +82,4 @@ MIT License
 - [ipasign.cc](https://sign.ipasign.cc)
 - [Feather](https://github.com/khcrysalis/Feather)
 - [qrcode](https://github.com/soldair/node-qrcode)
+- [Argon2 in Browser](https://github.com/antelle/argon2-browser)
