@@ -115,7 +115,7 @@ async function verifyDigest(arrayBuffer, expectedDigest) {
     return hashHex === expectedDigest.toLowerCase();
 }
 
-async function uploadRawText(text, filename = 'upload.txt', time = '12h') {
+async function uploadRawText(text, filename = 'upload.txt', time = '12h', litterbox = true) {
     const blob = new Blob([text], { type: 'text/plain' });
     const file = new File([blob], filename, { type: 'text/plain' });
 
@@ -124,8 +124,9 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h') {
     formData.append('time', time);
     formData.append('fileToUpload', file);
 
+    const uploadUrl = litterbox ? 'https://litterbox.catbox.moe/resources/internals/api.php' : 'https://catbox.moe/user/api.php';
     try {
-        const response = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+        const response = await fetch(uploadUrl, {
             method: 'POST',
             body: formData,
         });
@@ -146,26 +147,34 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h') {
     }
 }
 
-async function getEncryptedUrl(taskId, importUri) {
+function generateRandomPassword() {
+    const password = Array.from({ length: 24 }, () =>
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))
+    ).join('');
+
+    return password;
+}
+
+async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
     showCopiedNotification('🔒 Encrypting and uploading data...');
 
     // Block button clicks while processing
     const container = document.getElementById('sendToPhoneContainer');
     const buttons = container.querySelectorAll('button');
     buttons.forEach(btn => btn.disabled = true);
+    const password = generateRandomPassword();
 
-    const password = Array.from({ length: 24 }, () =>
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))
-    ).join('');
-
-    const encryptedJsonData = JSON.stringify({
-        taskId: await aesEncrypt(taskId, password),
-        importUri: await aesEncrypt(importUri, password)
-    });
+    var encryptedJsonData = certificateData
+    if (taskId && taskId.length > 0) {
+        encryptedJsonData = JSON.stringify({
+            taskId: await aesEncrypt(taskId, password),
+            certificateData: await aesEncrypt(certificateData, password)
+        });
+    }
 
     const encryptedData = await aesEncrypt(encryptedJsonData, password);
 
-    const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h');
+    const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
     if (!uploadedUrlId) {
         throw new Error('File upload failed.');
     }
@@ -173,9 +182,17 @@ async function getEncryptedUrl(taskId, importUri) {
     // Renable buttons after processing
     buttons.forEach(btn => btn.disabled = false);
 
+    if (!litterbox) {
+        return uploadedUrlId, password;
+    }
+
+    // Build a shareable URL that points back to this page with the uploaded id and password in the hash.
+    const shareUrl = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`;
+
     return {
-        url: `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`,
-        password
+        url: shareUrl,
+        password,
+        id: uploadedUrlId
     };
 }
 
@@ -187,11 +204,11 @@ async function downloadAndDecrypt(id, password) {
         const data = JSON.parse(decryptedText);
 
         const decryptedTaskId = await aesDecrypt(data.taskId, password);
-        const decryptedImportUri = await aesDecrypt(data.importUri, password);
+        const decryptedcertificateData = await aesDecrypt(data.certificateData, password);
 
-        if (!decryptedTaskId || !decryptedImportUri) throw new Error('Failed to decrypt data.');
+        if (!decryptedTaskId || !decryptedcertificateData) throw new Error('Failed to decrypt data.');
 
-        return { taskId: decryptedTaskId, importUri: decryptedImportUri };
+        return { taskId: decryptedTaskId, certificateData: decryptedcertificateData };
     } catch (err) {
         console.error('Decryption error:', err);
         throw new Error('Failed to decrypt data.');
@@ -199,7 +216,7 @@ async function downloadAndDecrypt(id, password) {
 
 }
 
-function createFinalButtons(taskId, importUri) {
+function createFinalButtons(taskId, certificateData) {
     const container = document.getElementById('sendToPhoneContainer');
     container.innerHTML = ''; // Clear previous
 
@@ -216,7 +233,7 @@ function createFinalButtons(taskId, importUri) {
                 await navigator.clipboard.writeText(encryptedUrlSaved);
                 showCopiedNotification();
             } else {
-                const { url } = await getEncryptedUrl(taskId, importUri);
+                const { url } = await getEncryptedUrl(taskId, certificateData);
                 await navigator.clipboard.writeText(url);
                 showCopiedNotification();
                 encryptedUrlSaved = url; // Save the URL for future copies
@@ -238,7 +255,7 @@ function createFinalButtons(taskId, importUri) {
             let qrCodeUrl = encryptedUrlSaved;
 
             if (!qrCodeUrl || qrCodeUrl.length <= 3) {
-                const result = await getEncryptedUrl(taskId, importUri);
+                const result = await getEncryptedUrl(taskId, certificateData);
                 qrCodeUrl = result.url;
                 encryptedUrlSaved = qrCodeUrl; // Save the URL for future copies
             }
@@ -307,8 +324,11 @@ transition-all duration-500 ease-in-out z-50
     }, 3000);
 }
 
-async function pollStatus(taskId, importUri, submitBtn = null, paramMode = false) {
+async function pollStatus(taskId, certificateData, submitBtn = null, paramMode = false) {
     updateStatus(`🛠 Signing in progress...<br><code>Task ID: ${taskId}</code>`, 'info');
+
+    // Prepare a safe certificate link HTML snippet to avoid ReferenceErrors when certificateData is missing.
+    const certificateLinkHtml = certificateData ? `\n                    <a href="${certificateData}" target="_blank"\n                        class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">\n                        🔑 Import Certificate\n                    </a>` : '';
 
     const poll = async () => {
         try {
@@ -319,20 +339,17 @@ async function pollStatus(taskId, importUri, submitBtn = null, paramMode = false
                 const installUrl = `itms-services://?action=download-manifest&url=https://ipa.ipasign.cc/manifest/${statusData.task_id}.plist`;
 
                 updateStatus(`
-            ✅ <strong>Signing complete!</strong><br><br>
-            <a href="${installUrl}" target="_blank"
-                class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">
-                📲 Install Feather
-            </a>
-            <a href="${importUri}" target="_blank"
-                class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">
-                🔑 Import Certificate
-            </a>
-        `, 'success');
+                    ✅ <strong>Signing complete!</strong><br><br>
+                    <a href="${installUrl}" target="_blank"
+                        class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">
+                        📲 Install Feather
+                    </a>
+                    ${certificateLinkHtml}
+                `, 'success');
 
                 // Only create final buttons if NOT in param mode
                 if (!paramMode) {
-                    createFinalButtons(taskId, importUri);
+                    createFinalButtons(taskId, certificateData);
                 }
 
                 if (submitBtn) submitBtn.disabled = false;
@@ -372,11 +389,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const password = decodeURIComponent(passwordParam);
 
             try {
-                downloadAndDecrypt(catboxId, password).then(({ taskId: decryptedTaskId, importUri: decryptedImportUri }) => {
-                    if (!decryptedTaskId || !decryptedImportUri) {
+                downloadAndDecrypt(catboxId, password).then(({ taskId: decryptedTaskId, certificateData: decryptedcertificateData }) => {
+                    if (!decryptedTaskId || !decryptedcertificateData) {
                         throw new Error('Failed to decrypt data.');
                     } else {
-                        pollStatus(decryptedTaskId, decryptedImportUri, null, true);
+                        pollStatus(decryptedTaskId, decryptedcertificateData, null, true);
 
                     }
                 });
@@ -453,9 +470,9 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             fileToBase64(mpFile),
         ]);
         const passwordBase64 = btoa(password);
-        const importUrl = `feather://import-certificate?p12=${p12Base64}&mobileprovision=${mpBase64}&password=${passwordBase64}`;
+        const certificateData = `feather://import-certificate?p12=${p12Base64}&mobileprovision=${mpBase64}&password=${passwordBase64}`;
 
-        pollStatus(taskId, importUrl, submitBtn);
+        pollStatus(taskId, certificateData, submitBtn);
     } catch (err) {
         updateStatus('🚫 Error: ' + err.message, 'error');
         console.error('Error in signing process:', err);
