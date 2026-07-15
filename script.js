@@ -229,7 +229,7 @@ function createFinalButtons(taskId, certificateData) {
 
     button.onclick = async () => {
         try {
-            if (encryptedUrlSaved.length > 3) {
+            if (encryptedUrlSaved && encryptedUrlSaved.length > 3) {
                 await navigator.clipboard.writeText(encryptedUrlSaved);
                 showCopiedNotification();
             } else {
@@ -254,7 +254,7 @@ function createFinalButtons(taskId, certificateData) {
         try {
             let qrCodeUrl = encryptedUrlSaved;
 
-            if (!qrCodeUrl || qrCodeUrl.length <= 3) {
+            if (!qrCodeUrl || (qrCodeUrl && qrCodeUrl.length <= 3)) {
                 const result = await getEncryptedUrl(taskId, certificateData);
                 qrCodeUrl = result.url;
                 encryptedUrlSaved = qrCodeUrl; // Save the URL for future copies
