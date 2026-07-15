@@ -147,6 +147,13 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h') {
 }
 
 async function getEncryptedUrl(taskId, importUri) {
+    showCopiedNotification('🔒 Encrypting and uploading data...');
+
+    // Block button clicks while processing
+    const container = document.getElementById('sendToPhoneContainer');
+    const buttons = container.querySelectorAll('button');
+    buttons.forEach(btn => btn.disabled = true);
+
     const password = Array.from({ length: 24 }, () =>
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))
     ).join('');
@@ -162,6 +169,9 @@ async function getEncryptedUrl(taskId, importUri) {
     if (!uploadedUrlId) {
         throw new Error('File upload failed.');
     }
+
+    // Renable buttons after processing
+    buttons.forEach(btn => btn.disabled = false);
 
     return {
         url: `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(uploadedUrlId)}#${encodeURIComponent(password)}`,
