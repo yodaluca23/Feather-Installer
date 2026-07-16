@@ -26,7 +26,6 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 6. Wait for the signing process to complete.
 7. Use the generated links to:
    - Install Feather on your iOS device.
-   - Import your certificate directly into the Feather app.
    - Optionally send a secure link to your phone or scan a QR code.
 
 ---
