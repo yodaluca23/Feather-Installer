@@ -235,9 +235,9 @@ function createFinalButtons(taskId, certificateData) {
 
     let encryptedUrlSaved = '';
 
-    // 📱 Button to copy URL
+    // 📲 Button to copy URL
     const button = document.createElement('button');
-    button.textContent = '📱 Send to Phone';
+    button.textContent = '📲 Send to Phone';
     button.className = 'mt-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition';
 
     button.onclick = async () => {
@@ -352,7 +352,7 @@ async function pollStatus(taskId, certificateData, submitBtn = null, paramMode =
                     ✅ <strong>Signing complete!</strong><br><br>
                     <a href="${installUrl}" target="_blank"
                         class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">
-                        📲 Install Feather
+                        📱Install Feather
                     </a>
                 `, 'success');
 
