@@ -7,9 +7,9 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 ## Features
 
 - Automatically downloads the latest Feather IPA from GitHub.
+- Injects your certificate into the Feather IPA so that it is ready for use as soon as it's installed.
 - Signs the IPA using your credentials via the [`ipasign.cc`](https://sign.ipasign.cc) API.
 - Provides a direct install link (`itms-services://`) for your signed app.
-- Generates a link to import your certificate into the Feather app (`feather://` scheme).
 - **"Send to Phone"** button to copy an encrypted Catbox-hosted URL for mobile access.
 - Optionally generate a **QR code** for quick device scanning.
 - Responsive design with full dark mode support.
@@ -39,6 +39,7 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 - Optional temporary file hosting (for import link encryption): [catbox.moe](https://litterbox.catbox.moe)
 - QR Code generation: [qrcode](https://github.com/soldair/node-qrcode)
 - Argon2 Key Derivation: [Argon2 in Browser](https://github.com/antelle/argon2-browser) (Included)
+- ZIP file modifying: [jsZIP](https://github.com/Stuk/jszip)
 
 ---
 
@@ -83,3 +84,4 @@ MIT License
 - [Feather](https://github.com/khcrysalis/Feather)
 - [qrcode](https://github.com/soldair/node-qrcode)
 - [Argon2 in Browser](https://github.com/antelle/argon2-browser)
+- [jsZIP](https://github.com/Stuk/jszip)

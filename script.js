@@ -340,9 +340,6 @@ transition-all duration-500 ease-in-out z-50
 async function pollStatus(taskId, certificateData, submitBtn = null, paramMode = false) {
     updateStatus(`🛠 Signing in progress...<br><code>Task ID: ${taskId}</code>`, 'info');
 
-    // Prepare a safe certificate link HTML snippet to avoid ReferenceErrors when certificateData is missing.
-    const certificateLinkHtml = certificateData ? `\n                    <a href="${certificateData}" target="_blank"\n                        class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">\n                        🔑 Import Certificate\n                    </a>` : '';
-
     const poll = async () => {
         try {
             const statusResponse = await fetch(`https://ipa.ipasign.cc/status/${taskId}`);
@@ -357,7 +354,6 @@ async function pollStatus(taskId, certificateData, submitBtn = null, paramMode =
                         class="inline-block mt-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow transition">
                         📲 Install Feather
                     </a>
-                    ${certificateLinkHtml}
                 `, 'success');
 
                 // Only create final buttons if NOT in param mode
@@ -387,6 +383,26 @@ async function pollStatus(taskId, certificateData, submitBtn = null, paramMode =
 function getQueryParam(name) {
     const value = new URLSearchParams(window.location.search).get(name);
     return value && value.trim() !== '' ? value : null;
+}
+
+async function injectFeather(ipaArrayBuffer, p12File, mpFile, password) {
+    const zip = await JSZip.loadAsync(ipaArrayBuffer);
+    const certificateName = p12File.name.replace(/\.[^/.]+$/, ""); // Remove extension
+    const certificatePath = `Payload/Feather.app/signing-assets/${certificateName}/`;
+    
+    // Add the .p12, .mobileprovision and password to the IPA
+    zip.file(`${certificatePath}file.p12`, p12File);
+    zip.file(`${certificatePath}file.mobileprovision`, mpFile);
+    zip.file(`${certificatePath}file.txt`, password);
+
+    const modifiedIpaArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
+
+    // Create a Blob and download URL log in console for debugging
+    //const modifiedIpaBlob = new Blob([modifiedIpaArrayBuffer], { type: 'application/octet-stream' });
+    //console.log('Modified IPA Blob:', modifiedIpaBlob);
+    //console.log('Modified IPA Blob Download URL:', URL.createObjectURL(modifiedIpaBlob));
+
+    return modifiedIpaArrayBuffer;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -458,9 +474,12 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             if (!isValid) throw new Error('IPA integrity check failed (digest mismatch)');
         } else {
             console.warn('No digest provided for IPA; skipping integrity check.');
+            alert('No digest provided for IPA; skipping integrity check.');
         }
 
-        const ipaBlob = new Blob([ipaArrayBuffer], { type: 'application/octet-stream' });
+        const injectedIpaArrayBuffer = await injectFeather(ipaArrayBuffer, p12File, mpFile, password);
+
+        const ipaBlob = new Blob([injectedIpaArrayBuffer], { type: 'application/octet-stream' });
 
         const formData = new FormData();
         formData.append('ipa', ipaBlob, 'Feather.ipa');
