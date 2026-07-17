@@ -175,21 +175,31 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
     const container = document.getElementById('sendToPhoneContainer');
     const buttons = container.querySelectorAll('button');
     buttons.forEach(btn => btn.disabled = true);
-    const password = generateRandomPassword();
 
-    var encryptedJsonData = certificateData
-    if (taskId && taskId.length > 0) {
-        encryptedJsonData = JSON.stringify({
-            taskId: await aesEncrypt(taskId, password),
-            certificateData: await aesEncrypt(certificateData, password)
-        });
-    }
+    try {
+        const password = generateRandomPassword();
 
-    const encryptedData = await aesEncrypt(encryptedJsonData, password);
+        var encryptedJsonData = certificateData
+        if (taskId && taskId.length > 0) {
+            encryptedJsonData = JSON.stringify({
+                taskId: await aesEncrypt(taskId, password),
+                certificateData: await aesEncrypt(certificateData, password)
+            });
+        }
 
-    const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
-    if (!uploadedUrlId) {
-        throw new Error('File upload failed.');
+        const encryptedData = await aesEncrypt(encryptedJsonData, password);
+
+        const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
+        if (!uploadedUrlId) {
+            throw new Error('File upload failed.');
+        }
+    } catch (err) {
+        console.error('Upload error:', err);
+        alert('Failed to upload encrypted URL: ' + err.message);
+        
+        // Renable buttons after error
+        buttons.forEach(btn => btn.disabled = false);
+        return null;
     }
 
     // Renable buttons after processing
@@ -388,19 +398,19 @@ function getQueryParam(name) {
 async function injectFeather(ipaArrayBuffer, p12File, mpFile, password) {
     const zip = await JSZip.loadAsync(ipaArrayBuffer);
     const certificateName = p12File.name.replace(/\.[^/.]+$/, ""); // Remove extension
-    const certificatePath = `Payload/Feather.app/signing-assets/${certificateName}/`;
+    const certificatePath = `Payload/Feather.app/signing-assets/Default/`;
     
     // Add the .p12, .mobileprovision and password to the IPA
-    zip.file(`${certificatePath}file.p12`, p12File);
-    zip.file(`${certificatePath}file.mobileprovision`, mpFile);
-    zip.file(`${certificatePath}file.txt`, password);
+    zip.file(`${certificatePath}cert.p12`, p12File);
+    zip.file(`${certificatePath}cert.mobileprovision`, mpFile);
+    zip.file(`${certificatePath}cert.txt`, password);
 
     const modifiedIpaArrayBuffer = await zip.generateAsync({ type: "arraybuffer" });
 
     // Create a Blob and download URL log in console for debugging
-    //const modifiedIpaBlob = new Blob([modifiedIpaArrayBuffer], { type: 'application/octet-stream' });
-    //console.log('Modified IPA Blob:', modifiedIpaBlob);
-    //console.log('Modified IPA Blob Download URL:', URL.createObjectURL(modifiedIpaBlob));
+    const modifiedIpaBlob = new Blob([modifiedIpaArrayBuffer], { type: 'application/octet-stream' });
+    console.log('Modified IPA Blob:', modifiedIpaBlob);
+    console.log('Modified IPA Blob Download URL:', URL.createObjectURL(modifiedIpaBlob));
 
     return modifiedIpaArrayBuffer;
 }
