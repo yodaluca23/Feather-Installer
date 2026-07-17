@@ -154,6 +154,7 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h', litter
         const parts = parsedUrl.pathname.split('/');
         const filename = parts.pop(); // e.g. '872eh8.txt'
         const id = filename.replace('.txt', '');
+        console.log(`Uploaded to ${url}, ID: ${id}`);
         return id;
 
     } catch (error) {
@@ -176,8 +177,11 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
     const buttons = container.querySelectorAll('button');
     buttons.forEach(btn => btn.disabled = true);
 
+    let uploadedUrlId = null;
+    let password = null;
+
     try {
-        const password = generateRandomPassword();
+        password = generateRandomPassword();
 
         var encryptedJsonData = certificateData
         if (taskId && taskId.length > 0) {
@@ -189,7 +193,7 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
 
         const encryptedData = await aesEncrypt(encryptedJsonData, password);
 
-        const uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
+        uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
         if (!uploadedUrlId) {
             throw new Error('File upload failed.');
         }
@@ -199,7 +203,7 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
         
         // Renable buttons after error
         buttons.forEach(btn => btn.disabled = false);
-        return null;
+            return { id: uploadedUrlId, password };
     }
 
     // Renable buttons after processing
