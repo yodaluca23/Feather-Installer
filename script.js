@@ -402,7 +402,7 @@ function getQueryParam(name) {
 async function injectFeather(ipaArrayBuffer, p12File, mpFile, password) {
     const zip = await JSZip.loadAsync(ipaArrayBuffer);
     const certificateName = p12File.name.replace(/\.[^/.]+$/, ""); // Remove extension
-    const certificatePath = `Payload/Feather.app/signing-assets/${certificateName}/`;
+    const certificatePath = `Payload/Feather.app/signing-assets/1. ${certificateName}/`;
     
     // Add the .p12, .mobileprovision and password to the IPA
     zip.file(`${certificatePath}cert.p12`, p12File);
