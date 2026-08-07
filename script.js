@@ -71,7 +71,7 @@ function chunkString(str, size) {
 }
 
 async function generateQrGrid(text, pixelSize=350, cols=8) {
-    console.log("Generating QR grid for text:\n", text);
+    //console.log("Generating QR grid for text:\n", text);
     const chunks = chunkString(text, 500); // 500 chars per QR
     const rows = Math.ceil(chunks.length / cols);
 
@@ -309,10 +309,10 @@ async function downloadAndDecrypt(id, password) {
         const imageBlob = await response.blob();
         const imageFile = new File([imageBlob], 'upload.png', { type: 'image/png' });
         const blobURL = URL.createObjectURL(imageBlob);
-        console.log('Downloaded image file:', imageFile);
-        console.log('Blob download:', blobURL);
+        //console.log('Downloaded image file:', imageFile);
+        //console.log('Blob download:', blobURL);
         const encryptedData = await readQrGrid(imageFile);
-        console.log('Encrypted data from QR grid:', encryptedData);
+        //console.log('Encrypted data from QR grid:', encryptedData);
 
         const decryptedText = await aesDecrypt(encryptedData, password);
         const data = JSON.parse(decryptedText);
