@@ -51,9 +51,9 @@
             This tool uses
             <a href="https://sign.ipasign.cc" target="_blank" rel="noopener noreferrer"
                 class="underline hover:text-blue-600 dark:hover:text-blue-400">
-                ipasign.cc</a> and <a href="https://litterbox.catbox.moe" target="_blank" rel="noopener noreferrer"
+                ipasign.cc</a> and <a href="https://imgbb.com" target="_blank" rel="noopener noreferrer"
                 class="underline hover:text-blue-600 dark:hover:text-blue-400">
-                catbox.moe</a> to sign and deliver your IPA. Please ensure you trust these services before proceeding.
+                imgbb.com</a> to sign and deliver your IPA. Please ensure you trust these services before proceeding.
         </p>
 
     </div>
@@ -72,8 +72,14 @@
         <span>GitHub</span>
     </a>
 
+    <div class="card hidden">
+        <h2>QR Grid Preview</h2>
+        <canvas id="qrCanvas" width="800" height="600"></canvas>
+    </div>
+
     <script src="./argon2-browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
     <script src="./script.js"></script>
 

@@ -10,7 +10,7 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 - Injects your certificate into the Feather IPA so that it is ready for use as soon as it's installed.
 - Signs the IPA using your credentials via the [`ipasign.cc`](https://sign.ipasign.cc) API.
 - Provides a direct install link (`itms-services://`) for your signed app.
-- **"Send to Phone"** button to copy an encrypted Catbox-hosted URL for mobile access.
+- **"Send to Phone"** button to copy an encrypted Imgbb-hosted URL for mobile access.
 - Optionally generate a **QR code** for quick device scanning.
 - Responsive design with full dark mode support.
 
@@ -35,10 +35,11 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 - [Tailwind CSS](https://tailwindcss.com) (via CDN)
 - Signing API: [ipasign.cc](https://sign.ipasign.cc)
 - IPA download proxy: [Cloudflare Workers](https://www.cloudflare.com/products/workers/) (Using ./cf-worker.js script)
-- Optional temporary file hosting (for import link encryption): [catbox.moe](https://litterbox.catbox.moe)
+- Optional temporary file hosting (for import link encryption): [Imgbb.com](https://imgbb.com)
 - QR Code generation: [qrcode](https://github.com/soldair/node-qrcode)
 - Argon2 Key Derivation: [Argon2 in Browser](https://github.com/antelle/argon2-browser) (Included)
 - ZIP file modifying: [jsZIP](https://github.com/Stuk/jszip)
+- QR Code Reading: [jsQR](https://github.com/cozmo/jsQR)
 
 ---
 
@@ -47,7 +48,8 @@ A web-based tool to sign the [Feather iOS app](https://github.com/khcrysalis/Fea
 This tool sends your `.p12`, `.mobileprovision`, and password directly to [ipasign.cc](https://sign.ipasign.cc) in order to sign your IPA — this is required for the signing process to work. No certificate files are stored or uploaded anywhere else.
 
 When using the **"Send to Phone"** or **QR Code** features:
-- The certificate **import link is encrypted client-side** using **AES-GCM (256-bit)** with a key derived via **Argon2id** (using the Included Argon2 in Browser package) before being uploaded as temporary storage (deleted after one hour) to [catbox.moe](https://litterbox.catbox.moe).
+- The certificate **import link is encrypted client-side** using **AES-GCM (256-bit)** with a key derived via **Argon2id** (using the Included Argon2 in Browser package),
+- It is then split into 500 character chunks and encoded into a QRcode grid before being uploaded as temporary storage (deleted after one hour) to [Imgbb.com](https://imgbb.com).
 - The decryption password is only shared via the URL fragment (not stored anywhere).
 
 > ⚠️ You should **only use this tool if you trust ipasign.cc** with your signing credentials. As with any third-party service handling Apple certificates, there is an inherent security risk.
@@ -84,3 +86,4 @@ MIT License
 - [qrcode](https://github.com/soldair/node-qrcode)
 - [Argon2 in Browser](https://github.com/antelle/argon2-browser)
 - [jsZIP](https://github.com/Stuk/jszip)
+- [jsQR](https://github.com/cozmo/jsQR)

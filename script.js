@@ -12,42 +12,42 @@ async function deriveKey(password, salt) {
     });
     const hash = hashResult.hash ?? hashResult;
 
-  return crypto.subtle.importKey(
-    "raw",
-    hash,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
-  );
+    return crypto.subtle.importKey(
+        "raw",
+        hash,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+    );
 }
 
 async function aesEncrypt(text, password) {
-  const enc = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveKey(password, salt);
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    enc.encode(text)
-  );
+    const enc = new TextEncoder();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await deriveKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        enc.encode(text)
+    );
 
-  const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
-  combined.set(salt);
-  combined.set(iv, salt.length);
-  combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
+    const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+    combined.set(salt);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
 
-  return btoa(String.fromCharCode(...combined));
+    return btoa(String.fromCharCode(...combined));
 }
 
 async function aesDecrypt(base64, password) {
-  const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  const salt = raw.slice(0, 16);
-  const iv = raw.slice(16, 28);
-  const data = raw.slice(28);
-  const key = await deriveKey(password, salt);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-  return new TextDecoder().decode(decrypted);
+    const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const salt = raw.slice(0, 16);
+    const iv = raw.slice(16, 28);
+    const data = raw.slice(28);
+    const key = await deriveKey(password, salt);
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+    return new TextDecoder().decode(decrypted);
 }
 
 function fileToBase64(file) {
@@ -59,6 +59,77 @@ function fileToBase64(file) {
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);
+    });
+}
+
+function chunkString(str, size) {
+    const chunks = [];
+    for (let i = 0; i < str.length; i += size) {
+        chunks.push(str.slice(i, i + size));
+    }
+    return chunks;
+}
+
+async function generateQrGrid(text, pixelSize=350, cols=8) {
+    console.log("Generating QR grid for text:\n", text);
+    const chunks = chunkString(text, 500); // 500 chars per QR
+    const rows = Math.ceil(chunks.length / cols);
+
+    const canvas = document.getElementById("qrCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = cols * pixelSize;
+    canvas.height = rows * pixelSize;
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const promises = chunks.map((chunk, idx) => {
+        const x = (idx % cols) * pixelSize;
+        const y = Math.floor(idx / cols) * pixelSize;
+
+        return new Promise((resolve) => {
+            QRCode.toCanvas(chunk, { width: pixelSize }, (err, canvas) => {
+                if (err) throw err;
+                ctx.drawImage(canvas, x, y, pixelSize, pixelSize);
+                resolve();
+            });
+        });
+    });
+
+    await Promise.all(promises);
+    return canvas;
+}
+
+async function readQrGrid(imageFile, cols=8) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+
+            const cellWidth = img.width / parseInt(cols);
+            const cellHeight = img.height / Math.ceil(img.height / cellWidth);
+
+            const chunks = [];
+            for (let y = 0; y < img.height; y += cellHeight) {
+                for (let x = 0; x < img.width; x += cellWidth) {
+                    const chunkCanvas = document.createElement("canvas");
+                    chunkCanvas.width = cellWidth;
+                    chunkCanvas.height = cellHeight;
+                    const chunkCtx = chunkCanvas.getContext("2d");
+                    chunkCtx.drawImage(img, x, y, cellWidth, cellHeight, 0, 0, cellWidth, cellHeight);
+
+                    const imageData = chunkCtx.getImageData(0, 0, cellWidth, cellHeight);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    if (code) chunks.push(code.data);
+                }
+            }
+            resolve(chunks.join(""));
+        };
+        img.src = URL.createObjectURL(imageFile);
     });
 }
 
@@ -129,16 +200,27 @@ async function verifyDigest(arrayBuffer, expectedDigest) {
     return hashHex === expectedDigest.toLowerCase();
 }
 
-async function uploadRawText(text, filename = 'upload.txt', time = '12h', litterbox = true) {
-    const blob = new Blob([text], { type: 'text/plain' });
-    const file = new File([blob], filename, { type: 'text/plain' });
+async function uploadRawText(text, filename = 'upload.png', time = 'PT1H', litterbox = true) {
+    const canvas = await generateQrGrid(text);
+    const fileBlob = await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Failed to generate QR grid image.'));
+                return;
+            }
+            resolve(new File([blob], filename, { type: 'image/png' }));
+        }, "image/png", 1.0);
+    });
 
     const formData = new FormData();
-    formData.append('reqtype', 'fileupload');
-    formData.append('time', time);
-    formData.append('fileToUpload', file);
+    formData.append('source', fileBlob);
+    formData.append('type', 'file');
+    formData.append('action', 'upload');
+    formData.append('timestamp', Date.now().toString());
+    formData.append('expiration', time);
+    formData.append('auth_token', '9396b8a7d25f0ba402080bca0c33fdd4b8a39c21');
 
-    const uploadUrl = litterbox ? 'https://litterbox.catbox.moe/resources/internals/api.php' : 'https://catbox.moe/user/api.php';
+    const uploadUrl = litterbox ? 'https://imgbb.com/json' : 'https://catbox.moe/user/api.php';
     try {
         const response = await fetch(uploadUrl, {
             method: 'POST',
@@ -149,12 +231,9 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h', litter
             throw new Error(`Upload failed with status: ${response.status}`);
         }
 
-        const url = await response.text();
-        const parsedUrl = new URL(url);
-        const parts = parsedUrl.pathname.split('/');
-        const filename = parts.pop(); // e.g. '872eh8.txt'
-        const id = filename.replace('.txt', '');
-        console.log(`Uploaded to ${url}, ID: ${id}`);
+        const data = await response.json();
+        const url = data?.image?.url ?? "";
+        const id = url.replace("https://i.ibb.co/", "").split("/")[0]; // Extract the ID from the URL
         return id;
 
     } catch (error) {
@@ -163,10 +242,10 @@ async function uploadRawText(text, filename = 'upload.txt', time = '12h', litter
 }
 
 function generateRandomPassword(length = 48) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const bytes = crypto.getRandomValues(new Uint8Array(length));
 
-  return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+    return Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
 }
 
 async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
@@ -193,17 +272,17 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
 
         const encryptedData = await aesEncrypt(encryptedJsonData, password);
 
-        uploadedUrlId = await uploadRawText(encryptedData, 'encryptedData.txt', '1h', litterbox);
+        uploadedUrlId = await uploadRawText(encryptedData, 'upload.png', 'PT1H', litterbox);
         if (!uploadedUrlId) {
             throw new Error('File upload failed.');
         }
     } catch (err) {
         console.error('Upload error:', err);
         alert('Failed to upload encrypted URL: ' + err.message);
-        
+
         // Renable buttons after error
         buttons.forEach(btn => btn.disabled = false);
-            return { id: uploadedUrlId, password };
+        return { id: uploadedUrlId, password };
     }
 
     // Renable buttons after processing
@@ -225,9 +304,17 @@ async function getEncryptedUrl(taskId, certificateData, litterbox = true) {
 
 async function downloadAndDecrypt(id, password) {
     try {
-        const response = await fetch(`https://litter.catbox.moe/${id}.txt`);
-        const text = await response.text();
-        const decryptedText = await aesDecrypt(text, password);
+        const response = await fetch(`https://i.ibb.co/${id}/upload.png`);
+
+        const imageBlob = await response.blob();
+        const imageFile = new File([imageBlob], 'upload.png', { type: 'image/png' });
+        const blobURL = URL.createObjectURL(imageBlob);
+        console.log('Downloaded image file:', imageFile);
+        console.log('Blob download:', blobURL);
+        const encryptedData = await readQrGrid(imageFile);
+        console.log('Encrypted data from QR grid:', encryptedData);
+
+        const decryptedText = await aesDecrypt(encryptedData, password);
         const data = JSON.parse(decryptedText);
 
         const decryptedTaskId = await aesDecrypt(data.taskId, password);
@@ -403,7 +490,7 @@ async function injectFeather(ipaArrayBuffer, p12File, mpFile, password) {
     const zip = await JSZip.loadAsync(ipaArrayBuffer);
     const certificateName = p12File.name.replace(/\.[^/.]+$/, ""); // Remove extension
     const certificatePath = `Payload/Feather.app/signing-assets/1. ${certificateName}/`;
-    
+
     // Add the .p12, .mobileprovision and password to the IPA
     zip.file(`${certificatePath}cert.p12`, p12File);
     zip.file(`${certificatePath}cert.mobileprovision`, mpFile);
@@ -413,7 +500,7 @@ async function injectFeather(ipaArrayBuffer, p12File, mpFile, password) {
 
     // Create a Blob and download URL log in console for debugging
     const modifiedIpaBlob = new Blob([modifiedIpaArrayBuffer], { type: 'application/octet-stream' });
-    console.log('Modified IPA Blob:', modifiedIpaBlob);
+    // console.log('Modified IPA Blob:', modifiedIpaBlob);
     console.log('Modified IPA Blob Download URL:', URL.createObjectURL(modifiedIpaBlob));
 
     return modifiedIpaArrayBuffer;
